@@ -39,6 +39,7 @@ async def send_ticket_to_email(ticket: Ticket, files: Optional[List[TicketFile]]
 - Имя: {ticket.username or 'Не указано'}
 - Телефон: {ticket.phone}
 - Email: {ticket.email or 'Не указано'}
+- Местонахождение: {ticket.location or 'Не указано'}
 
 Описание проблемы:
 {ticket.description}

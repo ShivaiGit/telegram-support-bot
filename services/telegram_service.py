@@ -29,6 +29,7 @@ async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[Tic
 👤 Пользователь: {ticket.username or 'Не указано'}
 📞 Телефон: {ticket.phone}
 📧 Email: {ticket.email or 'Не указано'}
+📍 Местонахождение: {ticket.location or 'Не указано'}
 📅 Дата: {ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else 'Не указано'}
 ⚡ Приоритет: {priority_emoji.get(ticket.priority, '🟡')} {priority_text.get(ticket.priority, 'Средний')}
 

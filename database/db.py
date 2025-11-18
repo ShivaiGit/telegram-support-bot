@@ -15,6 +15,7 @@ async def init_db():
                 username VARCHAR(255),
                 phone VARCHAR(50) NOT NULL,
                 email VARCHAR(255),
+                location VARCHAR(500),
                 description TEXT NOT NULL,
                 priority VARCHAR(20) DEFAULT 'medium',
                 status VARCHAR(20) DEFAULT 'new',
@@ -22,6 +23,14 @@ async def init_db():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Добавляем колонку location, если её нет (для существующих БД)
+        try:
+            await db.execute("ALTER TABLE tickets ADD COLUMN location VARCHAR(500)")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            # Колонка уже существует
+            pass
         
         # Создание таблицы ticket_files
         await db.execute("""

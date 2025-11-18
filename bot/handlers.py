@@ -60,6 +60,7 @@ async def cmd_help(message: Message):
 • Имя (обязательно)
 • Телефон (обязательно)
 • Email (необязательно)
+• Местонахождение (обязательно)
 • Описание проблемы (обязательно)
 • Приоритет заявки
 • Файлы (необязательно)
@@ -133,10 +134,10 @@ async def process_phone(message: Message, state: FSMContext):
 async def skip_email(message: Message, state: FSMContext):
     """Пропуск email"""
     await state.update_data(email=None)
-    await state.set_state(TicketForm.waiting_for_description)
+    await state.set_state(TicketForm.waiting_for_location)
     await message.answer(
         "✅ Email пропущен\n\n"
-        "Теперь опишите вашу проблему подробно:",
+        "Укажите ваше местонахождение (город, адрес или другое):",
         reply_markup=None
     )
 
@@ -154,11 +155,30 @@ async def process_email(message: Message, state: FSMContext):
         return
     
     await state.update_data(email=email)
-    await state.set_state(TicketForm.waiting_for_description)
+    await state.set_state(TicketForm.waiting_for_location)
     await message.answer(
         f"✅ Email сохранен: {email}\n\n"
-        "Теперь опишите вашу проблему подробно:",
+        "Укажите ваше местонахождение (город, адрес или другое):",
         reply_markup=None
+    )
+
+
+@router.message(StateFilter(TicketForm.waiting_for_location))
+async def process_location(message: Message, state: FSMContext):
+    """Обработка местонахождения"""
+    location = message.text.strip()
+    
+    if not location or len(location) < 2:
+        await message.answer(
+            "❌ Местонахождение должно содержать минимум 2 символа. Попробуйте еще раз:"
+        )
+        return
+    
+    await state.update_data(location=location)
+    await state.set_state(TicketForm.waiting_for_description)
+    await message.answer(
+        f"✅ Местонахождение сохранено: {location}\n\n"
+        "Теперь опишите вашу проблему подробно:"
     )
 
 
@@ -266,6 +286,7 @@ async def files_done(callback: CallbackQuery, state: FSMContext):
 👤 Имя: {data.get('name')}
 📞 Телефон: {data.get('phone')}
 📧 Email: {data.get('email') or 'Не указано'}
+📍 Местонахождение: {data.get('location', 'Не указано')}
 📝 Описание: {data.get('description')[:100]}{'...' if len(data.get('description', '')) > 100 else ''}
 ⚡ Приоритет: {data.get('priority', 'medium')}
 📎 Файлов: {len(files)}
@@ -282,8 +303,8 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     try:
-        # Генерируем номер заявки
-        ticket_number = await Ticket.get_next_ticket_number()
+        # Генерируем номер заявки на основе ID пользователя
+        ticket_number = await Ticket.get_next_ticket_number(callback.from_user.id)
         
         # Создаем заявку в БД
         ticket = await Ticket.create(
@@ -292,6 +313,7 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
             username=data.get('name'),
             phone=data.get('phone'),
             email=data.get('email'),
+            location=data.get('location'),
             description=data.get('description'),
             priority=data.get('priority', 'medium')
         )

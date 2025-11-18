@@ -15,6 +15,7 @@ class Ticket:
         description: str,
         username: Optional[str] = None,
         email: Optional[str] = None,
+        location: Optional[str] = None,
         priority: str = "medium",
         status: str = "new",
         ticket_id: Optional[int] = None,
@@ -27,6 +28,7 @@ class Ticket:
         self.username = username
         self.phone = phone
         self.email = email
+        self.location = location
         self.description = description
         self.priority = priority
         self.status = status
@@ -36,14 +38,15 @@ class Ticket:
     @classmethod
     async def create(cls, ticket_number: str, user_id: int, phone: str, 
                     description: str, username: Optional[str] = None,
-                    email: Optional[str] = None, priority: str = "medium") -> 'Ticket':
+                    email: Optional[str] = None, location: Optional[str] = None,
+                    priority: str = "medium") -> 'Ticket':
         """Создание новой заявки"""
         async with aiosqlite.connect("tickets.db") as db:
             cursor = await db.execute("""
                 INSERT INTO tickets 
-                (ticket_number, user_id, username, phone, email, description, priority, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'new')
-            """, (ticket_number, user_id, username, phone, email, description, priority))
+                (ticket_number, user_id, username, phone, email, location, description, priority, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new')
+            """, (ticket_number, user_id, username, phone, email, location, description, priority))
             await db.commit()
             ticket_id = cursor.lastrowid
             
@@ -59,19 +62,37 @@ class Ticket:
         """Создание объекта из строки БД"""
         if not row:
             return None
-        return cls(
-            ticket_id=row[0],
-            ticket_number=row[1],
-            user_id=row[2],
-            username=row[3],
-            phone=row[4],
-            email=row[5],
-            description=row[6],
-            priority=row[7],
-            status=row[8],
-            created_at=datetime.fromisoformat(row[9]) if row[9] else None,
-            updated_at=datetime.fromisoformat(row[10]) if row[10] else None
-        )
+        # Проверяем количество колонок для обратной совместимости
+        if len(row) == 12:  # Новая версия с location
+            return cls(
+                ticket_id=row[0],
+                ticket_number=row[1],
+                user_id=row[2],
+                username=row[3],
+                phone=row[4],
+                email=row[5],
+                location=row[6],
+                description=row[7],
+                priority=row[8],
+                status=row[9],
+                created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                updated_at=datetime.fromisoformat(row[11]) if row[11] else None
+            )
+        else:  # Старая версия без location
+            return cls(
+                ticket_id=row[0],
+                ticket_number=row[1],
+                user_id=row[2],
+                username=row[3],
+                phone=row[4],
+                email=row[5],
+                location=None,
+                description=row[6],
+                priority=row[7],
+                status=row[8],
+                created_at=datetime.fromisoformat(row[9]) if row[9] else None,
+                updated_at=datetime.fromisoformat(row[10]) if row[10] else None
+            )
     
     @classmethod
     async def get_by_number(cls, ticket_number: str) -> Optional['Ticket']:
@@ -95,14 +116,14 @@ class Ticket:
                 return [cls._from_row(row) for row in rows]
     
     @classmethod
-    async def get_next_ticket_number(cls) -> str:
-        """Генерация следующего номера заявки"""
+    async def get_next_ticket_number(cls, user_id: int) -> str:
+        """Генерация следующего номера заявки на основе ID пользователя"""
         async with aiosqlite.connect("tickets.db") as db:
             async with db.execute("""
-                SELECT COUNT(*) FROM tickets
-            """) as cursor:
+                SELECT COUNT(*) FROM tickets WHERE user_id = ?
+            """, (user_id,)) as cursor:
                 count = (await cursor.fetchone())[0]
-                return f"TICKET-{count + 1:04d}"
+                return f"IDtg{user_id}-{count + 1:04d}"
 
 
 class TicketFile:
