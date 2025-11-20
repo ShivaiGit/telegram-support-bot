@@ -12,14 +12,13 @@ def validate_email(email: str) -> bool:
 
 
 def validate_phone(phone: str) -> bool:
-    """Валидация номера телефона"""
+    """Валидация номера телефона (4 цифры)"""
     if not phone:
         return False
-    # Удаляем все символы кроме цифр и +
-    cleaned = re.sub(r'[^\d+]', '', phone)
-    # Проверяем, что осталось минимум 10 цифр
-    digits = re.sub(r'[^\d]', '', cleaned)
-    return len(digits) >= 10
+    # Удаляем все символы кроме цифр
+    digits = re.sub(r'[^\d]', '', phone)
+    # Проверяем, что ровно 4 цифры
+    return len(digits) == 4
 
 
 def validate_description(description: str, max_length: int = 2000) -> bool:
@@ -30,8 +29,9 @@ def validate_description(description: str, max_length: int = 2000) -> bool:
 
 
 def clean_phone(phone: str) -> str:
-    """Очистка номера телефона"""
-    # Удаляем все символы кроме цифр и +
-    cleaned = re.sub(r'[^\d+]', '', phone)
-    return cleaned
+    """Очистка номера телефона (оставляет только 4 цифры)"""
+    # Удаляем все символы кроме цифр
+    digits = re.sub(r'[^\d]', '', phone)
+    # Берем первые 4 цифры
+    return digits[:4] if len(digits) >= 4 else digits
 

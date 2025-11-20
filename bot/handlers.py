@@ -103,7 +103,7 @@ async def process_name(message: Message, state: FSMContext):
     await state.set_state(TicketForm.waiting_for_phone)
     await message.answer(
         f"✅ Имя сохранено: {name}\n\n"
-        "Теперь введите ваш контактный телефон:"
+        "Теперь введите ваш контактный телефон (4 цифры):"
     )
 
 
@@ -115,7 +115,7 @@ async def process_phone(message: Message, state: FSMContext):
     
     if not validate_phone(cleaned_phone):
         await message.answer(
-            "❌ Некорректный формат телефона. Пожалуйста, введите номер телефона еще раз:"
+            "❌ Некорректный формат телефона. Пожалуйста, введите ровно 4 цифры:"
         )
         return
     
