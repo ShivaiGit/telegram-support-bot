@@ -3,6 +3,7 @@ from typing import List, Optional
 from aiogram import Bot
 from config import Config
 from database.models import Ticket, TicketFile
+from zoneinfo import ZoneInfo
 
 
 async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[TicketFile]] = None):
@@ -24,13 +25,26 @@ async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[Tic
         "critical": "Критический"
     }
     
+    # Форматирование времени с учетом часового пояса
+    moscow_tz = ZoneInfo("Europe/Moscow")
+    if ticket.created_at:
+        if ticket.created_at.tzinfo is None:
+            # Если время без часового пояса, считаем его московским
+            dt = ticket.created_at.replace(tzinfo=moscow_tz)
+        else:
+            # Конвертируем в московское время
+            dt = ticket.created_at.astimezone(moscow_tz)
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+    else:
+        date_str = 'Не указано'
+    
     message = f"""🔔 Новая заявка {ticket.ticket_number}
 
 👤 Пользователь: {ticket.username or 'Не указано'}
 📞 Телефон: {ticket.phone}
 📧 Email: {ticket.email or 'Не указано'}
 📍 Местонахождение: {ticket.location or 'Не указано'}
-📅 Дата: {ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else 'Не указано'}
+📅 Дата: {date_str}
 ⚡ Приоритет: {priority_emoji.get(ticket.priority, '🟡')} {priority_text.get(ticket.priority, 'Средний')}
 
 📝 Описание:

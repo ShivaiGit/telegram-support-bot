@@ -9,6 +9,7 @@ import aiofiles
 import os
 from config import Config
 from database.models import Ticket, TicketFile
+from zoneinfo import ZoneInfo
 
 
 async def send_ticket_to_email(ticket: Ticket, files: Optional[List[TicketFile]] = None):
@@ -26,13 +27,26 @@ async def send_ticket_to_email(ticket: Ticket, files: Optional[List[TicketFile]]
     description_preview = ticket.description[:50] + "..." if len(ticket.description) > 50 else ticket.description
     subject = f"[Техподдержка] Заявка {ticket.ticket_number} - {description_preview}"
     
+    # Форматирование времени с учетом часового пояса
+    moscow_tz = ZoneInfo("Europe/Moscow")
+    if ticket.created_at:
+        if ticket.created_at.tzinfo is None:
+            # Если время без часового пояса, считаем его московским
+            dt = ticket.created_at.replace(tzinfo=moscow_tz)
+        else:
+            # Конвертируем в московское время
+            dt = ticket.created_at.astimezone(moscow_tz)
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+    else:
+        date_str = 'Не указано'
+    
     # Формирование тела письма
     body = f"""Здравствуйте!
 
 Поступила новая заявка в отдел технической поддержки.
 
 Номер заявки: {ticket.ticket_number}
-Дата создания: {ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else 'Не указано'}
+Дата создания: {date_str}
 Приоритет: {priority_text.get(ticket.priority, 'Средний')}
 
 Данные пользователя:

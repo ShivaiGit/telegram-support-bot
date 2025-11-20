@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import Optional, List
 import aiosqlite
+from zoneinfo import ZoneInfo
 
 
 class Ticket:
@@ -41,12 +42,17 @@ class Ticket:
                     email: Optional[str] = None, location: Optional[str] = None,
                     priority: str = "medium") -> 'Ticket':
         """Создание новой заявки"""
+        # Получаем текущее время в московском часовом поясе
+        moscow_tz = ZoneInfo("Europe/Moscow")
+        now = datetime.now(moscow_tz)
+        now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+        
         async with aiosqlite.connect("tickets.db") as db:
             cursor = await db.execute("""
                 INSERT INTO tickets 
-                (ticket_number, user_id, username, phone, email, location, description, priority, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new')
-            """, (ticket_number, user_id, username, phone, email, location, description, priority))
+                (ticket_number, user_id, username, phone, email, location, description, priority, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)
+            """, (ticket_number, user_id, username, phone, email, location, description, priority, now_str, now_str))
             await db.commit()
             ticket_id = cursor.lastrowid
             
@@ -66,6 +72,34 @@ class Ticket:
         """Создание объекта из строки БД"""
         if not row:
             return None
+        
+        moscow_tz = ZoneInfo("Europe/Moscow")
+        
+        def parse_datetime(dt_str):
+            """Парсинг времени из БД с учетом часового пояса"""
+            if not dt_str:
+                return None
+            try:
+                # Пробуем разные форматы
+                if isinstance(dt_str, str):
+                    # Если есть информация о часовом поясе
+                    if 'T' in dt_str or '+' in dt_str or dt_str.endswith('Z'):
+                        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                    else:
+                        # Простой формат YYYY-MM-DD HH:MM:SS - считаем московским временем
+                        dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+                        dt = dt.replace(tzinfo=moscow_tz)
+                    # Конвертируем в московское время, если нужно
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=moscow_tz)
+                    elif dt.tzinfo != moscow_tz:
+                        dt = dt.astimezone(moscow_tz)
+                    return dt
+                return None
+            except (ValueError, AttributeError) as e:
+                print(f"Ошибка парсинга времени '{dt_str}': {e}")
+                return None
+        
         # Проверяем количество колонок для обратной совместимости
         if len(row) == 12:  # Новая версия с location
             return cls(
@@ -79,8 +113,8 @@ class Ticket:
                 description=row[7],
                 priority=row[8],
                 status=row[9],
-                created_at=datetime.fromisoformat(row[10]) if row[10] else None,
-                updated_at=datetime.fromisoformat(row[11]) if row[11] else None
+                created_at=parse_datetime(row[10]),
+                updated_at=parse_datetime(row[11])
             )
         else:  # Старая версия без location
             return cls(
@@ -94,8 +128,8 @@ class Ticket:
                 description=row[6],
                 priority=row[7],
                 status=row[8],
-                created_at=datetime.fromisoformat(row[9]) if row[9] else None,
-                updated_at=datetime.fromisoformat(row[10]) if row[10] else None
+                created_at=parse_datetime(row[9]),
+                updated_at=parse_datetime(row[10])
             )
     
     @classmethod
