@@ -127,7 +127,9 @@ class Ticket:
                 SELECT COUNT(*) FROM tickets WHERE user_id = ?
             """, (user_id,)) as cursor:
                 count = (await cursor.fetchone())[0]
-                return f"IDtg{user_id}-{count + 1:04d}"
+                # Берем последние 6 символов ID пользователя
+                user_id_short = str(user_id)[-6:].zfill(6)
+                return f"IDtg-{user_id_short}-{count + 1:04d}"
 
 
 class TicketFile:
