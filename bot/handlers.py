@@ -13,11 +13,8 @@ from database.db import init_db
 from bot.states import TicketForm
 from bot.keyboards import (
     get_priority_keyboard,
-    get_skip_keyboard,
-    get_skip_keyboard_with_main,
     get_confirm_keyboard,
-    get_files_keyboard,
-    get_main_keyboard
+    get_files_keyboard
 )
 from utils.validators import validate_email, validate_phone, validate_description, clean_phone
 from services.telegram_service import send_ticket_to_chat
