@@ -233,8 +233,6 @@ async def process_description(message: Message, state: FSMContext):
         "Выберите приоритет заявки:",
         reply_markup=get_priority_keyboard()
     )
-    # Отправляем главную клавиатуру отдельным сообщением, чтобы не мешать inline-клавиатуре
-    await message.answer("Используйте кнопки ниже для навигации:", reply_markup=get_main_keyboard())
 
 
 @router.callback_query(StateFilter(TicketForm.waiting_for_priority), F.data.startswith("priority_"))
