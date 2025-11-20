@@ -14,7 +14,8 @@ from bot.states import TicketForm
 from bot.keyboards import (
     get_priority_keyboard,
     get_confirm_keyboard,
-    get_files_keyboard
+    get_files_keyboard,
+    get_menu_keyboard
 )
 from utils.validators import validate_email, validate_phone, validate_description, clean_phone
 from services.telegram_service import send_ticket_to_chat
@@ -31,31 +32,35 @@ ticket_data = {}
 
 
 @router.message(Command("start"))
+@router.message(Command("menu"))
+@router.message(F.text.in_(["🏠 Главное меню", "Главное меню"]))
 async def cmd_start(message: Message, state: FSMContext):
-    """Обработчик команды /start"""
+    """Обработчик команды /start и /menu"""
     await state.clear()
     welcome_text = """👋 Добро пожаловать в бот технической поддержки!
 
 Я помогу вам создать заявку для отдела технической поддержки.
 
-Доступные команды:
+Используйте кнопки ниже или команды:
 /new - создать новую заявку
 /help - справка
-/cancel - отменить текущую операцию"""
+/cancel - отменить текущую операцию
+/menu - показать меню с кнопками"""
     
-    await message.answer(welcome_text)
+    await message.answer(welcome_text, reply_markup=get_menu_keyboard())
 
 
 @router.message(Command("help"))
+@router.message(F.text.in_(["ℹ️ Помощь", "Помощь"]))
 async def cmd_help(message: Message):
     """Обработчик команды /help"""
     help_text = """📖 Справка по использованию бота
 
-Для создания заявки используйте команду /new
+Для создания заявки используйте команду /new или кнопку "🆕 Создать заявку"
 
 Бот запросит у вас следующую информацию:
 • Имя (обязательно)
-• Телефон (обязательно)
+• Телефон (обязательно) - рабочий или мобильный
 • Email (обязательно)
 • Местонахождение (обязательно)
 • Описание проблемы (обязательно)
@@ -67,27 +72,34 @@ async def cmd_help(message: Message):
 Команды:
 /new - создать новую заявку
 /cancel - отменить текущую операцию
-/help - показать эту справку"""
+/help - показать эту справку
+/menu - показать меню с кнопками"""
     
-    await message.answer(help_text)
+    await message.answer(help_text, reply_markup=get_menu_keyboard())
 
 
 @router.message(Command("new"))
+@router.message(F.text.in_(["🆕 Создать заявку", "Создать заявку"]))
 async def cmd_new(message: Message, state: FSMContext):
     """Обработчик команды /new - начало создания заявки"""
     await state.clear()
     await state.set_state(TicketForm.waiting_for_name)
     await message.answer(
         "📝 Начнем создание новой заявки!\n\n"
-        "Пожалуйста, введите ваше имя:"
+        "Пожалуйста, введите ваше имя:",
+        reply_markup=get_menu_keyboard()
     )
 
 
 @router.message(Command("cancel"))
+@router.message(F.text.in_(["❌ Отменить", "Отменить"]))
 async def cmd_cancel(message: Message, state: FSMContext):
     """Обработчик команды /cancel"""
     await state.clear()
-    await message.answer("❌ Операция отменена. Используйте /new для создания новой заявки.")
+    await message.answer(
+        "❌ Операция отменена. Используйте /new или кнопку '🆕 Создать заявку' для создания новой заявки.",
+        reply_markup=get_menu_keyboard()
+    )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_name))
@@ -99,23 +111,33 @@ async def process_name(message: Message, state: FSMContext):
         await message.answer("❌ Имя должно содержать минимум 2 символа. Попробуйте еще раз:")
         return
     
+    # Проверяем, не нажата ли кнопка меню
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "❌ Отменить", "Отменить", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     await state.update_data(name=name)
     await state.set_state(TicketForm.waiting_for_phone)
     await message.answer(
         f"✅ Имя сохранено: {name}\n\n"
-        "Теперь введите ваш контактный телефон (4 цифры):"
+        "Теперь введите ваш контактный телефон (рабочий или мобильный):",
+        reply_markup=get_menu_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_phone))
 async def process_phone(message: Message, state: FSMContext):
     """Обработка телефона"""
+    # Проверяем, не нажата ли кнопка меню
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "❌ Отменить", "Отменить", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     phone = message.text.strip()
     cleaned_phone = clean_phone(phone)
     
     if not validate_phone(cleaned_phone):
         await message.answer(
-            "❌ Некорректный формат телефона. Пожалуйста, введите ровно 4 цифры:"
+            "❌ Некорректный формат телефона. Пожалуйста, введите рабочий (4 цифры) или мобильный (11 цифр) телефон:",
+            reply_markup=get_menu_keyboard()
         )
         return
     
@@ -123,18 +145,24 @@ async def process_phone(message: Message, state: FSMContext):
     await state.set_state(TicketForm.waiting_for_email)
     await message.answer(
         f"✅ Телефон сохранен: {cleaned_phone}\n\n"
-        "Введите ваш email адрес:"
+        "Введите ваш email адрес:",
+        reply_markup=get_menu_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_email))
 async def process_email(message: Message, state: FSMContext):
     """Обработка email"""
+    # Проверяем, не нажата ли кнопка меню
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "❌ Отменить", "Отменить", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     email = message.text.strip()
     
     if not validate_email(email):
         await message.answer(
-            "❌ Некорректный формат email. Пожалуйста, введите корректный email адрес:"
+            "❌ Некорректный формат email. Пожалуйста, введите корректный email адрес:",
+            reply_markup=get_menu_keyboard()
         )
         return
     
@@ -142,18 +170,24 @@ async def process_email(message: Message, state: FSMContext):
     await state.set_state(TicketForm.waiting_for_location)
     await message.answer(
         f"✅ Email сохранен: {email}\n\n"
-        "Укажите ваше местонахождение (город, адрес или другое):"
+        "Укажите ваше местонахождение (город, адрес или другое):",
+        reply_markup=get_menu_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_location))
 async def process_location(message: Message, state: FSMContext):
     """Обработка местонахождения"""
+    # Проверяем, не нажата ли кнопка меню
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "❌ Отменить", "Отменить", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     location = message.text.strip()
     
     if not location or len(location) < 2:
         await message.answer(
-            "❌ Местонахождение должно содержать минимум 2 символа. Попробуйте еще раз:"
+            "❌ Местонахождение должно содержать минимум 2 символа. Попробуйте еще раз:",
+            reply_markup=get_menu_keyboard()
         )
         return
     
@@ -161,19 +195,25 @@ async def process_location(message: Message, state: FSMContext):
     await state.set_state(TicketForm.waiting_for_description)
     await message.answer(
         f"✅ Местонахождение сохранено: {location}\n\n"
-        "Теперь опишите вашу проблему подробно:"
+        "Теперь опишите вашу проблему подробно:",
+        reply_markup=get_menu_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_description))
 async def process_description(message: Message, state: FSMContext):
     """Обработка описания проблемы"""
+    # Проверяем, не нажата ли кнопка меню
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "❌ Отменить", "Отменить", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     description = message.text.strip()
     
     if not validate_description(description):
         await message.answer(
             "❌ Описание не может быть пустым и не должно превышать 2000 символов. "
-            "Попробуйте еще раз:"
+            "Попробуйте еще раз:",
+            reply_markup=get_menu_keyboard()
         )
         return
     
@@ -329,8 +369,13 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
             f"✅ Заявка успешно создана!\n\n"
             f"Номер заявки: {ticket_number}\n\n"
             f"Ваша заявка отправлена в отдел технической поддержки. "
-            f"Мы свяжемся с вами в ближайшее время.\n\n"
-            f"Используйте /new для создания новой заявки."
+            f"Мы свяжемся с вами в ближайшее время."
+        )
+        
+        # Отправляем меню
+        await callback.message.answer(
+            "Используйте /new или кнопку '🆕 Создать заявку' для создания новой заявки.",
+            reply_markup=get_menu_keyboard()
         )
         
         await state.clear()

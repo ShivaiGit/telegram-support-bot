@@ -2,6 +2,25 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
+def get_menu_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура с кнопками меню (можно вызвать по команде /menu)"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🆕 Создать заявку"),
+                KeyboardButton(text="ℹ️ Помощь")
+            ],
+            [
+                KeyboardButton(text="❌ Отменить"),
+                KeyboardButton(text="🏠 Главное меню")
+            ]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False
+    )
+    return keyboard
+
+
 def get_main_keyboard() -> ReplyKeyboardMarkup:
     """Главная клавиатура с основными командами"""
     keyboard = ReplyKeyboardMarkup(
