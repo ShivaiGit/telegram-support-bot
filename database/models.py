@@ -52,9 +52,13 @@ class Ticket:
             
             # Получаем созданную заявку
             async with db.execute("""
-                SELECT * FROM tickets WHERE id = ?
+                SELECT id, ticket_number, user_id, username, phone, email, location, 
+                       description, priority, status, created_at, updated_at 
+                FROM tickets WHERE id = ?
             """, (ticket_id,)) as cursor:
                 row = await cursor.fetchone()
+                if not row:
+                    raise ValueError(f"Заявка с id {ticket_id} не найдена после создания")
                 return cls._from_row(row)
     
     @classmethod

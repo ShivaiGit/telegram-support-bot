@@ -25,12 +25,22 @@ async def init_db():
         """)
         
         # Добавляем колонку location, если её нет (для существующих БД)
+        # Проверяем существование колонки через PRAGMA
         try:
-            await db.execute("ALTER TABLE tickets ADD COLUMN location VARCHAR(500)")
-            await db.commit()
-        except aiosqlite.OperationalError:
-            # Колонка уже существует
-            pass
+            async with db.execute("PRAGMA table_info(tickets)") as cursor:
+                columns = await cursor.fetchall()
+                column_names = [col[1] for col in columns]
+                if 'location' not in column_names:
+                    await db.execute("ALTER TABLE tickets ADD COLUMN location VARCHAR(500)")
+                    await db.commit()
+        except Exception:
+            # Если не удалось проверить, пробуем добавить
+            try:
+                await db.execute("ALTER TABLE tickets ADD COLUMN location VARCHAR(500)")
+                await db.commit()
+            except aiosqlite.OperationalError:
+                # Колонка уже существует
+                pass
         
         # Создание таблицы ticket_files
         await db.execute("""

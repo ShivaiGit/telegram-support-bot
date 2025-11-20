@@ -354,9 +354,14 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Заявка создана!")
     
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         logger.error(f"Ошибка при создании заявки: {e}")
+        logger.error(f"Детали ошибки:\n{error_details}")
         await callback.message.edit_text(
-            "❌ Произошла ошибка при создании заявки. Пожалуйста, попробуйте еще раз."
+            f"❌ Произошла ошибка при создании заявки.\n\n"
+            f"Ошибка: {str(e)}\n\n"
+            f"Пожалуйста, попробуйте еще раз или обратитесь к администратору."
         )
         await callback.answer("Ошибка!")
         await state.clear()
