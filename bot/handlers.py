@@ -31,9 +31,9 @@ router = Router()
 ticket_data = {}
 
 
-@router.message(Command("start"))
-@router.message(Command("menu"))
-@router.message(F.text.in_(["🏠 Главное меню", "Главное меню"]))
+@router.message(Command("start"), F.chat.type == "private")
+@router.message(Command("menu"), F.chat.type == "private")
+@router.message(F.text.in_(["🏠 Главное меню", "Главное меню"]), F.chat.type == "private")
 async def cmd_start(message: Message, state: FSMContext):
     """Обработчик команды /start и /menu"""
     await state.clear()
@@ -50,8 +50,8 @@ async def cmd_start(message: Message, state: FSMContext):
     await message.answer(welcome_text, reply_markup=get_menu_keyboard())
 
 
-@router.message(Command("help"))
-@router.message(F.text.in_(["ℹ️ Помощь", "Помощь"]))
+@router.message(Command("help"), F.chat.type == "private")
+@router.message(F.text.in_(["ℹ️ Помощь", "Помощь"]), F.chat.type == "private")
 async def cmd_help(message: Message):
     """Обработчик команды /help"""
     help_text = """📖 Справка по использованию бота
@@ -78,8 +78,8 @@ async def cmd_help(message: Message):
     await message.answer(help_text, reply_markup=get_menu_keyboard())
 
 
-@router.message(Command("new"))
-@router.message(F.text.in_(["🆕 Создать заявку", "Создать заявку"]))
+@router.message(Command("new"), F.chat.type == "private")
+@router.message(F.text.in_(["🆕 Создать заявку", "Создать заявку"]), F.chat.type == "private")
 async def cmd_new(message: Message, state: FSMContext):
     """Обработчик команды /new - начало создания заявки"""
     await state.clear()
@@ -91,8 +91,8 @@ async def cmd_new(message: Message, state: FSMContext):
     )
 
 
-@router.message(Command("cancel"))
-@router.message(F.text.in_(["❌ Отменить", "Отменить"]))
+@router.message(Command("cancel"), F.chat.type == "private")
+@router.message(F.text.in_(["❌ Отменить", "Отменить"]), F.chat.type == "private")
 async def cmd_cancel(message: Message, state: FSMContext):
     """Обработчик команды /cancel"""
     await state.clear()
@@ -102,7 +102,7 @@ async def cmd_cancel(message: Message, state: FSMContext):
     )
 
 
-@router.message(StateFilter(TicketForm.waiting_for_name))
+@router.message(StateFilter(TicketForm.waiting_for_name), F.chat.type == "private")
 async def process_name(message: Message, state: FSMContext):
     """Обработка имени пользователя"""
     name = message.text.strip()
@@ -124,7 +124,7 @@ async def process_name(message: Message, state: FSMContext):
     )
 
 
-@router.message(StateFilter(TicketForm.waiting_for_phone))
+@router.message(StateFilter(TicketForm.waiting_for_phone), F.chat.type == "private")
 async def process_phone(message: Message, state: FSMContext):
     """Обработка телефона"""
     # Проверяем, не нажата ли кнопка меню
@@ -150,7 +150,7 @@ async def process_phone(message: Message, state: FSMContext):
     )
 
 
-@router.message(StateFilter(TicketForm.waiting_for_email))
+@router.message(StateFilter(TicketForm.waiting_for_email), F.chat.type == "private")
 async def process_email(message: Message, state: FSMContext):
     """Обработка email"""
     # Проверяем, не нажата ли кнопка меню
@@ -175,7 +175,7 @@ async def process_email(message: Message, state: FSMContext):
     )
 
 
-@router.message(StateFilter(TicketForm.waiting_for_location))
+@router.message(StateFilter(TicketForm.waiting_for_location), F.chat.type == "private")
 async def process_location(message: Message, state: FSMContext):
     """Обработка местонахождения"""
     # Проверяем, не нажата ли кнопка меню
@@ -200,7 +200,7 @@ async def process_location(message: Message, state: FSMContext):
     )
 
 
-@router.message(StateFilter(TicketForm.waiting_for_description))
+@router.message(StateFilter(TicketForm.waiting_for_description), F.chat.type == "private")
 async def process_description(message: Message, state: FSMContext):
     """Обработка описания проблемы"""
     # Проверяем, не нажата ли кнопка меню
@@ -250,7 +250,7 @@ async def process_priority(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(StateFilter(TicketForm.waiting_for_files), F.photo | F.document)
+@router.message(StateFilter(TicketForm.waiting_for_files), (F.photo | F.document), F.chat.type == "private")
 async def process_file(message: Message, state: FSMContext):
     """Обработка прикрепленных файлов"""
     data = await state.get_data()
