@@ -14,8 +14,10 @@ from bot.states import TicketForm
 from bot.keyboards import (
     get_priority_keyboard,
     get_skip_keyboard,
+    get_skip_keyboard_with_main,
     get_confirm_keyboard,
-    get_files_keyboard
+    get_files_keyboard,
+    get_main_keyboard
 )
 from utils.validators import validate_email, validate_phone, validate_description, clean_phone
 from services.telegram_service import send_ticket_to_chat
@@ -32,6 +34,7 @@ ticket_data = {}
 
 
 @router.message(Command("start"))
+@router.message(F.text.in_(["🏠 Главное меню", "Главное меню"]))
 async def cmd_start(message: Message, state: FSMContext):
     """Обработчик команды /start"""
     await state.clear()
@@ -39,22 +42,21 @@ async def cmd_start(message: Message, state: FSMContext):
 
 Я помогу вам создать заявку для отдела технической поддержки.
 
-Для начала работы используйте команду /new
-
-Доступные команды:
-/new - создать новую заявку
-/help - справка
-/cancel - отменить текущую операцию"""
+Используйте кнопки внизу для навигации:
+• 🆕 Создать заявку - начать создание новой заявки
+• ℹ️ Помощь - получить справку
+• 🏠 Главное меню - вернуться в главное меню"""
     
-    await message.answer(welcome_text)
+    await message.answer(welcome_text, reply_markup=get_main_keyboard())
 
 
 @router.message(Command("help"))
+@router.message(F.text.in_(["ℹ️ Помощь", "Помощь", "/help"]))
 async def cmd_help(message: Message):
     """Обработчик команды /help"""
     help_text = """📖 Справка по использованию бота
 
-Для создания заявки используйте команду /new
+Для создания заявки нажмите кнопку "🆕 Создать заявку"
 
 Бот запросит у вас следующую информацию:
 • Имя (обязательно)
@@ -67,22 +69,21 @@ async def cmd_help(message: Message):
 
 После заполнения всех данных вы сможете просмотреть сводку и подтвердить отправку заявки.
 
-Команды:
-/new - создать новую заявку
-/cancel - отменить текущую операцию
-/help - показать эту справку"""
+Используйте кнопки внизу для навигации."""
     
-    await message.answer(help_text)
+    await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
 @router.message(Command("new"))
+@router.message(F.text.in_(["🆕 Создать заявку", "Создать заявку", "/new"]))
 async def cmd_new(message: Message, state: FSMContext):
     """Обработчик команды /new - начало создания заявки"""
     await state.clear()
     await state.set_state(TicketForm.waiting_for_name)
     await message.answer(
         "📝 Начнем создание новой заявки!\n\n"
-        "Пожалуйста, введите ваше имя:"
+        "Пожалуйста, введите ваше имя:",
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -90,22 +91,33 @@ async def cmd_new(message: Message, state: FSMContext):
 async def cmd_cancel(message: Message, state: FSMContext):
     """Обработчик команды /cancel"""
     await state.clear()
-    await message.answer("❌ Операция отменена. Используйте /new для создания новой заявки.")
+    await message.answer(
+        "❌ Операция отменена. Нажмите '🆕 Создать заявку' для создания новой заявки.",
+        reply_markup=get_main_keyboard()
+    )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_name))
 async def process_name(message: Message, state: FSMContext):
     """Обработка имени пользователя"""
     name = message.text.strip()
+    # Проверяем, не нажата ли кнопка навигации
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "🏠 Главное меню", "Главное меню"]:
+        return  # Игнорируем, обработчики этих команд уже есть
+    
     if not name or len(name) < 2:
-        await message.answer("❌ Имя должно содержать минимум 2 символа. Попробуйте еще раз:")
+        await message.answer(
+            "❌ Имя должно содержать минимум 2 символа. Попробуйте еще раз:",
+            reply_markup=get_main_keyboard()
+        )
         return
     
     await state.update_data(name=name)
     await state.set_state(TicketForm.waiting_for_phone)
     await message.answer(
         f"✅ Имя сохранено: {name}\n\n"
-        "Теперь введите ваш контактный телефон:"
+        "Теперь введите ваш контактный телефон:",
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -115,9 +127,14 @@ async def process_phone(message: Message, state: FSMContext):
     phone = message.text.strip()
     cleaned_phone = clean_phone(phone)
     
+    # Проверяем, не нажата ли кнопка навигации
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     if not validate_phone(cleaned_phone):
         await message.answer(
-            "❌ Некорректный формат телефона. Пожалуйста, введите номер телефона еще раз:"
+            "❌ Некорректный формат телефона. Пожалуйста, введите номер телефона еще раз:",
+            reply_markup=get_main_keyboard()
         )
         return
     
@@ -126,7 +143,7 @@ async def process_phone(message: Message, state: FSMContext):
     await message.answer(
         f"✅ Телефон сохранен: {cleaned_phone}\n\n"
         "Введите ваш email адрес (или нажмите 'Пропустить'):",
-        reply_markup=get_skip_keyboard()
+        reply_markup=get_skip_keyboard_with_main()
     )
 
 
@@ -138,19 +155,23 @@ async def skip_email(message: Message, state: FSMContext):
     await message.answer(
         "✅ Email пропущен\n\n"
         "Укажите ваше местонахождение (город, адрес или другое):",
-        reply_markup=None
+        reply_markup=get_main_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_email))
 async def process_email(message: Message, state: FSMContext):
     """Обработка email"""
+    # Проверяем, не нажата ли кнопка навигации
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     email = message.text.strip()
     
     if not validate_email(email):
         await message.answer(
             "❌ Некорректный формат email. Попробуйте еще раз или нажмите 'Пропустить':",
-            reply_markup=get_skip_keyboard()
+            reply_markup=get_skip_keyboard_with_main()
         )
         return
     
@@ -159,18 +180,23 @@ async def process_email(message: Message, state: FSMContext):
     await message.answer(
         f"✅ Email сохранен: {email}\n\n"
         "Укажите ваше местонахождение (город, адрес или другое):",
-        reply_markup=None
+        reply_markup=get_main_keyboard()
     )
 
 
 @router.message(StateFilter(TicketForm.waiting_for_location))
 async def process_location(message: Message, state: FSMContext):
     """Обработка местонахождения"""
+    # Проверяем, не нажата ли кнопка навигации
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     location = message.text.strip()
     
     if not location or len(location) < 2:
         await message.answer(
-            "❌ Местонахождение должно содержать минимум 2 символа. Попробуйте еще раз:"
+            "❌ Местонахождение должно содержать минимум 2 символа. Попробуйте еще раз:",
+            reply_markup=get_main_keyboard()
         )
         return
     
@@ -178,7 +204,8 @@ async def process_location(message: Message, state: FSMContext):
     await state.set_state(TicketForm.waiting_for_description)
     await message.answer(
         f"✅ Местонахождение сохранено: {location}\n\n"
-        "Теперь опишите вашу проблему подробно:"
+        "Теперь опишите вашу проблему подробно:",
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -187,10 +214,15 @@ async def process_description(message: Message, state: FSMContext):
     """Обработка описания проблемы"""
     description = message.text.strip()
     
+    # Проверяем, не нажата ли кнопка навигации
+    if message.text in ["🆕 Создать заявку", "Создать заявку", "ℹ️ Помощь", "Помощь", "🏠 Главное меню", "Главное меню"]:
+        return
+    
     if not validate_description(description):
         await message.answer(
             "❌ Описание не может быть пустым и не должно превышать 2000 символов. "
-            "Попробуйте еще раз:"
+            "Попробуйте еще раз:",
+            reply_markup=get_main_keyboard()
         )
         return
     
@@ -201,6 +233,8 @@ async def process_description(message: Message, state: FSMContext):
         "Выберите приоритет заявки:",
         reply_markup=get_priority_keyboard()
     )
+    # Отправляем главную клавиатуру отдельным сообщением, чтобы не мешать inline-клавиатуре
+    await message.answer("Используйте кнопки ниже для навигации:", reply_markup=get_main_keyboard())
 
 
 @router.callback_query(StateFilter(TicketForm.waiting_for_priority), F.data.startswith("priority_"))
@@ -346,8 +380,13 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
             f"✅ Заявка успешно создана!\n\n"
             f"Номер заявки: {ticket_number}\n\n"
             f"Ваша заявка отправлена в отдел технической поддержки. "
-            f"Мы свяжемся с вами в ближайшее время.\n\n"
-            f"Используйте /new для создания новой заявки."
+            f"Мы свяжемся с вами в ближайшее время."
+        )
+        
+        # Отправляем главную клавиатуру
+        await callback.message.answer(
+            "Нажмите '🆕 Создать заявку' для создания новой заявки.",
+            reply_markup=get_main_keyboard()
         )
         
         await state.clear()
@@ -362,6 +401,10 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
             f"❌ Произошла ошибка при создании заявки.\n\n"
             f"Ошибка: {str(e)}\n\n"
             f"Пожалуйста, попробуйте еще раз или обратитесь к администратору."
+        )
+        await callback.message.answer(
+            "Нажмите '🆕 Создать заявку' для повторной попытки.",
+            reply_markup=get_main_keyboard()
         )
         await callback.answer("Ошибка!")
         await state.clear()

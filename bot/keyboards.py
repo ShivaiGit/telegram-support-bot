@@ -2,6 +2,43 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
+def get_main_keyboard() -> ReplyKeyboardMarkup:
+    """Главная клавиатура с основными командами"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🆕 Создать заявку"),
+                KeyboardButton(text="ℹ️ Помощь")
+            ],
+            [
+                KeyboardButton(text="🏠 Главное меню")
+            ]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    return keyboard
+
+
+def get_skip_keyboard_with_main() -> ReplyKeyboardMarkup:
+    """Клавиатура с кнопкой пропуска и основными командами"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="⏭ Пропустить")],
+            [
+                KeyboardButton(text="🆕 Создать заявку"),
+                KeyboardButton(text="ℹ️ Помощь")
+            ],
+            [
+                KeyboardButton(text="🏠 Главное меню")
+            ]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    return keyboard
+
+
 def get_priority_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура для выбора приоритета"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -18,13 +55,8 @@ def get_priority_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_skip_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура с кнопкой пропуска"""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="⏭ Пропустить")]],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-    return keyboard
+    """Клавиатура с кнопкой пропуска (устаревшая, используйте get_skip_keyboard_with_main)"""
+    return get_skip_keyboard_with_main()
 
 
 def get_confirm_keyboard() -> InlineKeyboardMarkup:
