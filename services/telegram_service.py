@@ -1,6 +1,7 @@
 """Сервис для отправки сообщений в Telegram"""
 from typing import List, Optional
 from aiogram import Bot
+from aiogram.types import ReplyKeyboardRemove
 from config import Config
 from database.models import Ticket, TicketFile
 import pytz
@@ -54,10 +55,11 @@ async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[Tic
         message += f"\n\n📎 Вложения: {len(files)} файл(ов)"
     
     try:
-        # Отправка текстового сообщения
+        # Отправка текстового сообщения без клавиатуры (для групповых чатов)
         await bot.send_message(
             chat_id=Config.TELEGRAM_CHAT_ID,
-            text=message
+            text=message,
+            reply_markup=ReplyKeyboardRemove()
         )
         
         # Отправка файлов, если есть
@@ -66,12 +68,14 @@ async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[Tic
                 if file_info.file_type == "photo":
                     await bot.send_photo(
                         chat_id=Config.TELEGRAM_CHAT_ID,
-                        photo=file_info.file_id
+                        photo=file_info.file_id,
+                        reply_markup=ReplyKeyboardRemove()
                     )
                 else:
                     await bot.send_document(
                         chat_id=Config.TELEGRAM_CHAT_ID,
-                        document=file_info.file_id
+                        document=file_info.file_id,
+                        reply_markup=ReplyKeyboardRemove()
                     )
             except Exception as e:
                 # Логируем ошибку, но продолжаем отправку других файлов

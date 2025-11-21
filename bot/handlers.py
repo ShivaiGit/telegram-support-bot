@@ -4,7 +4,7 @@ import logging
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, ReplyKeyboardRemove
 from aiogram.fsm.state import State, StatesGroup
 import aiofiles
 from config import Config
@@ -406,10 +406,18 @@ async def cancel_ticket(callback: CallbackQuery, state: FSMContext):
 # Обработчик для игнорирования всех сообщений в групповых чатах
 @router.message(F.chat.type.in_(["group", "supergroup"]))
 async def ignore_group_messages(message: Message):
-    """Игнорировать все сообщения в групповых чатах"""
+    """Игнорировать все сообщения в групповых чатах и удалить клавиатуру"""
     # Бот не должен отвечать на сообщения в групповых чатах
     # Он только отправляет туда заявки, но не обрабатывает входящие сообщения
-    pass
+    # Удаляем клавиатуру, если она была показана
+    try:
+        await message.answer(
+            "Этот бот работает только в личных сообщениях. Напишите боту в личку.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+    except Exception:
+        # Игнорируем ошибки при удалении клавиатуры
+        pass
 
 
 # Обработчик для игнорирования всех callback_query в групповых чатах
