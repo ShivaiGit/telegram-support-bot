@@ -226,7 +226,7 @@ async def process_description(message: Message, state: FSMContext):
     )
 
 
-@router.callback_query(StateFilter(TicketForm.waiting_for_priority), F.data.startswith("priority_"))
+@router.callback_query(StateFilter(TicketForm.waiting_for_priority), F.data.startswith("priority_"), F.message.chat.type == "private")
 async def process_priority(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора приоритета"""
     priority = callback.data.split("_")[1]
@@ -295,7 +295,7 @@ async def process_file(message: Message, state: FSMContext):
         await message.answer(f"✅ Файл добавлен ({len(files)} файл(ов))")
 
 
-@router.callback_query(StateFilter(TicketForm.waiting_for_files), F.data == "files_done")
+@router.callback_query(StateFilter(TicketForm.waiting_for_files), F.data == "files_done", F.message.chat.type == "private")
 async def files_done(callback: CallbackQuery, state: FSMContext):
     """Завершение добавления файлов"""
     data = await state.get_data()
@@ -320,7 +320,7 @@ async def files_done(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(StateFilter(TicketForm.confirming), F.data == "confirm_yes")
+@router.callback_query(StateFilter(TicketForm.confirming), F.data == "confirm_yes", F.message.chat.type == "private")
 async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
     """Подтверждение и создание заявки"""
     data = await state.get_data()
@@ -395,10 +395,26 @@ async def confirm_ticket(callback: CallbackQuery, state: FSMContext):
         await state.clear()
 
 
-@router.callback_query(StateFilter(TicketForm.confirming), F.data == "confirm_no")
+@router.callback_query(StateFilter(TicketForm.confirming), F.data == "confirm_no", F.message.chat.type == "private")
 async def cancel_ticket(callback: CallbackQuery, state: FSMContext):
     """Отмена создания заявки"""
     await state.clear()
     await callback.message.edit_text("❌ Создание заявки отменено. Используйте /new для создания новой заявки.")
     await callback.answer()
+
+
+# Обработчик для игнорирования всех сообщений в групповых чатах
+@router.message(F.chat.type.in_(["group", "supergroup"]))
+async def ignore_group_messages(message: Message):
+    """Игнорировать все сообщения в групповых чатах"""
+    # Бот не должен отвечать на сообщения в групповых чатах
+    # Он только отправляет туда заявки, но не обрабатывает входящие сообщения
+    pass
+
+
+# Обработчик для игнорирования всех callback_query в групповых чатах
+@router.callback_query(F.message.chat.type.in_(["group", "supergroup"]))
+async def ignore_group_callbacks(callback: CallbackQuery):
+    """Игнорировать все callback_query в групповых чатах"""
+    await callback.answer("Этот бот работает только в личных сообщениях", show_alert=True)
 
