@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional, List
 import aiosqlite
-from zoneinfo import ZoneInfo
+import pytz
 
 
 class Ticket:
@@ -43,7 +43,7 @@ class Ticket:
                     priority: str = "medium") -> 'Ticket':
         """Создание новой заявки"""
         # Получаем текущее время в московском часовом поясе
-        moscow_tz = ZoneInfo("Europe/Moscow")
+        moscow_tz = pytz.timezone("Europe/Moscow")
         now = datetime.now(moscow_tz)
         now_str = now.strftime('%Y-%m-%d %H:%M:%S')
         
@@ -73,7 +73,7 @@ class Ticket:
         if not row:
             return None
         
-        moscow_tz = ZoneInfo("Europe/Moscow")
+        moscow_tz = pytz.timezone("Europe/Moscow")
         
         def parse_datetime(dt_str):
             """Парсинг времени из БД с учетом часового пояса"""
@@ -85,15 +85,15 @@ class Ticket:
                     # Если есть информация о часовом поясе
                     if 'T' in dt_str or '+' in dt_str or dt_str.endswith('Z'):
                         dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                        # Конвертируем в московское время
+                        if dt.tzinfo:
+                            dt = dt.astimezone(moscow_tz)
+                        else:
+                            dt = moscow_tz.localize(dt)
                     else:
                         # Простой формат YYYY-MM-DD HH:MM:SS - считаем московским временем
                         dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
-                        dt = dt.replace(tzinfo=moscow_tz)
-                    # Конвертируем в московское время, если нужно
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=moscow_tz)
-                    elif dt.tzinfo != moscow_tz:
-                        dt = dt.astimezone(moscow_tz)
+                        dt = moscow_tz.localize(dt)
                     return dt
                 return None
             except (ValueError, AttributeError) as e:

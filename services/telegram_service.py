@@ -3,7 +3,7 @@ from typing import List, Optional
 from aiogram import Bot
 from config import Config
 from database.models import Ticket, TicketFile
-from zoneinfo import ZoneInfo
+import pytz
 
 
 async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[TicketFile]] = None):
@@ -26,11 +26,11 @@ async def send_ticket_to_chat(bot: Bot, ticket: Ticket, files: Optional[List[Tic
     }
     
     # Форматирование времени с учетом часового пояса
-    moscow_tz = ZoneInfo("Europe/Moscow")
+    moscow_tz = pytz.timezone("Europe/Moscow")
     if ticket.created_at:
         if ticket.created_at.tzinfo is None:
             # Если время без часового пояса, считаем его московским
-            dt = ticket.created_at.replace(tzinfo=moscow_tz)
+            dt = moscow_tz.localize(ticket.created_at)
         else:
             # Конвертируем в московское время
             dt = ticket.created_at.astimezone(moscow_tz)

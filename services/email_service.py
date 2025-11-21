@@ -9,7 +9,7 @@ import aiofiles
 import os
 from config import Config
 from database.models import Ticket, TicketFile
-from zoneinfo import ZoneInfo
+import pytz
 
 
 async def send_ticket_to_email(ticket: Ticket, files: Optional[List[TicketFile]] = None):
@@ -28,11 +28,11 @@ async def send_ticket_to_email(ticket: Ticket, files: Optional[List[TicketFile]]
     subject = f"[Техподдержка] Заявка {ticket.ticket_number} - {description_preview}"
     
     # Форматирование времени с учетом часового пояса
-    moscow_tz = ZoneInfo("Europe/Moscow")
+    moscow_tz = pytz.timezone("Europe/Moscow")
     if ticket.created_at:
         if ticket.created_at.tzinfo is None:
             # Если время без часового пояса, считаем его московским
-            dt = ticket.created_at.replace(tzinfo=moscow_tz)
+            dt = moscow_tz.localize(ticket.created_at)
         else:
             # Конвертируем в московское время
             dt = ticket.created_at.astimezone(moscow_tz)
